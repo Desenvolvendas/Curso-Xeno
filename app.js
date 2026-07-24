@@ -51,14 +51,13 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ==========================================================================
        2. SCROLL REVEAL ANIMATIONS (Intersection Observer)
        ========================================================================== */
-    const revealElements = document.querySelectorAll('.scroll-reveal, .scroll-reveal-left, .scroll-reveal-word, .filo-step, .filo-step-final');
+    const revealElements = document.querySelectorAll('.scroll-reveal, .scroll-reveal-left, .scroll-reveal-word');
     
     if ('IntersectionObserver' in window) {
         const revealObserver = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     entry.target.classList.add('reveal-active');
-                    // Once animated, we can unobserve if we want it static, or keep observing for replay
                     observer.unobserve(entry.target);
                 }
             });
@@ -71,92 +70,45 @@ document.addEventListener('DOMContentLoaded', () => {
             revealObserver.observe(element);
         });
     } else {
-        // Fallback for older browsers
         revealElements.forEach(element => {
             element.classList.add('reveal-active');
         });
     }
 
     /* ==========================================================================
-       3. INTERACTIVE BEFORE/AFTER SLIDER
+       3. VIDEO OVERLAY & PLAYER CONTROLS
        ========================================================================== */
-    const slider = document.getElementById('comparison-slider');
-    const afterImg = document.getElementById('after-slider-img');
-    const handle = document.getElementById('slider-handle');
-    
-    if (slider && afterImg && handle) {
-        let isDragging = false;
+    const mainVideo = document.getElementById('main-video-player');
+    const mainOverlay = document.getElementById('main-video-overlay');
 
-        const updateSlider = (clientX) => {
-            const rect = slider.getBoundingClientRect();
-            // Calculate horizontal offset position percentage (0 to 100)
-            let position = ((clientX - rect.left) / rect.width) * 100;
-            
-            // Constrain between 0% and 100%
-            if (position < 0) position = 0;
-            if (position > 100) position = 100;
-
-            // Apply position to crop width of the "after" image container and position the handle
-            afterImg.style.width = `${100 - position}%`;
-            handle.style.left = `${position}%`;
-        };
-
-        // Desktop Events
-        handle.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            e.preventDefault();
+    if (mainVideo && mainOverlay) {
+        mainOverlay.addEventListener('click', () => {
+            mainOverlay.classList.add('hidden');
+            mainVideo.play();
         });
 
-        window.addEventListener('mouseup', () => {
-            isDragging = false;
-        });
-
-        window.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            updateSlider(e.clientX);
-        });
-
-        // Touch Mobile Events
-        handle.addEventListener('touchstart', (e) => {
-            isDragging = true;
-        });
-
-        window.addEventListener('touchend', () => {
-            isDragging = false;
-        });
-
-        window.addEventListener('touchmove', (e) => {
-            if (!isDragging) return;
-            if (e.touches.length > 0) {
-                updateSlider(e.touches[0].clientX);
+        mainVideo.addEventListener('pause', () => {
+            if (mainVideo.currentTime < mainVideo.duration && !mainVideo.seeking) {
+                mainOverlay.classList.remove('hidden');
             }
         });
 
-        // Click directly on slider container to shift position
-        slider.addEventListener('click', (e) => {
-            if (e.target !== handle && !handle.contains(e.target)) {
-                updateSlider(e.clientX);
-            }
+        mainVideo.addEventListener('play', () => {
+            mainOverlay.classList.add('hidden');
         });
     }
 
-
-
     /* ==========================================================================
-       5. COUNTDOWN TIMER (Scarcity & Urgency)
+       4. COUNTDOWN TIMER (Scarcity & Urgency)
        ========================================================================== */
     const hoursEl = document.getElementById('timer-hours');
     const minutesEl = document.getElementById('timer-minutes');
     const secondsEl = document.getElementById('timer-seconds');
     
     if (hoursEl && minutesEl && secondsEl) {
-        // High converting mechanism: Start counting down from a set duration
-        // Store the target expiry in local storage or cookie, so it persists
-        // for each user session, making the timer highly convincing!
         let durationSeconds = parseInt(localStorage.getItem('promo_timer_duration'));
         
         if (isNaN(durationSeconds) || durationSeconds <= 0) {
-            // Default promo: 2 hours, 59 minutes, 45 seconds
             durationSeconds = (2 * 3600) + (59 * 60) + 45;
         }
 
@@ -170,11 +122,10 @@ document.addEventListener('DOMContentLoaded', () => {
             secondsEl.textContent = s.toString().padStart(2, '0');
         };
 
-        const timerInterval = setInterval(() => {
+        setInterval(() => {
             durationSeconds--;
             
             if (durationSeconds <= 0) {
-                // If countdown finishes, reset to another 3 hours to keep pages selling
                 durationSeconds = (3 * 3600) + (0 * 60) + 0;
             }
             
@@ -186,53 +137,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /* ==========================================================================
-       6. VACANCIES INDICATOR (Urgência e Escassez)
+       5. VACANCIES INDICATOR (Urgência e Escassez)
        ========================================================================== */
     const vagasCountEl = document.getElementById('vagas-count');
     const vagasBarEl = document.getElementById('vagas-bar');
 
     if (vagasCountEl && vagasBarEl) {
-        // Read or set initial seats count
         let seatsRemaining = parseInt(localStorage.getItem('seats_remaining'));
         if (isNaN(seatsRemaining) || seatsRemaining <= 0) {
-            seatsRemaining = 12; // Start with 12 seats
+            seatsRemaining = 7;
         }
 
-        const maxSeats = 80; // total capacity reference
+        const maxSeats = 50;
         
         const updateSeatsDisplay = () => {
             vagasCountEl.textContent = seatsRemaining.toString();
-            
-            // Calculate percentage filled. E.g., if 8 seats left, bar should be thin (like 10% filled visual representation of urgency)
-            // Or let's make it show the filled percentage (e.g. 12 seats remaining out of 80 means 68 seats filled, which is 85% filled, showing scarcity)
             const filledPercent = ((maxSeats - seatsRemaining) / maxSeats) * 100;
             vagasBarEl.style.width = `${filledPercent}%`;
         };
 
-        // Every 45 seconds, simulate one purchase if seats are above 3
         const purchaseInterval = setInterval(() => {
-            if (seatsRemaining > 3) {
+            if (seatsRemaining > 2) {
                 seatsRemaining--;
                 localStorage.setItem('seats_remaining', seatsRemaining.toString());
                 updateSeatsDisplay();
             } else {
                 clearInterval(purchaseInterval);
             }
-        }, 45000); // 45 seconds
+        }, 45000);
 
         updateSeatsDisplay();
     }
 
     /* ==========================================================================
-       7. EXCLUSIVE FAQ ACCORDION BEHAVIOR (Optional optimization)
+       6. FAQ ACCORDION BEHAVIOR
        ========================================================================== */
     const faqItems = document.querySelectorAll('.faq-item');
     
     faqItems.forEach(item => {
-        item.addEventListener('click', (e) => {
-            // Close other accordion tabs when opening one
-            if (item.hasAttribute('open')) return; // let default close happen
-            
+        item.addEventListener('click', () => {
+            if (item.hasAttribute('open')) return;
             faqItems.forEach(otherItem => {
                 if (otherItem !== item && otherItem.hasAttribute('open')) {
                     otherItem.removeAttribute('open');
