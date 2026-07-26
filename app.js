@@ -99,52 +99,57 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /* ==========================================================================
-       4. COUNTDOWN TIMER (Scarcity & Urgency)
+       4. COUNTDOWN TIMER (Scarcity & Urgency Automática)
        ========================================================================== */
     const hoursEl = document.getElementById('timer-hours');
     const minutesEl = document.getElementById('timer-minutes');
     const secondsEl = document.getElementById('timer-seconds');
     
     if (hoursEl && minutesEl && secondsEl) {
-        let durationSeconds = parseInt(localStorage.getItem('promo_timer_duration'));
+        let promoEndTime = localStorage.getItem('promo_end_timestamp');
+        const now = Date.now();
         
-        if (isNaN(durationSeconds) || durationSeconds <= 0) {
-            durationSeconds = (2 * 3600) + (59 * 60) + 45;
+        // Define oferta de 3 horas dinâmicas persistidas
+        if (!promoEndTime || parseInt(promoEndTime) < now) {
+            promoEndTime = now + (2 * 3600 + 54 * 60 + 30) * 1000;
+            localStorage.setItem('promo_end_timestamp', promoEndTime.toString());
+        } else {
+            promoEndTime = parseInt(promoEndTime);
         }
 
         const updateTimerDisplay = () => {
-            const h = Math.floor(durationSeconds / 3600);
-            const m = Math.floor((durationSeconds % 3600) / 60);
-            const s = durationSeconds % 60;
+            const currentNow = Date.now();
+            let diffSeconds = Math.max(0, Math.floor((promoEndTime - currentNow) / 1000));
+            
+            if (diffSeconds <= 0) {
+                // Renova o ciclo
+                promoEndTime = Date.now() + (3 * 3600) * 1000;
+                localStorage.setItem('promo_end_timestamp', promoEndTime.toString());
+                diffSeconds = 3 * 3600;
+            }
+
+            const h = Math.floor(diffSeconds / 3600);
+            const m = Math.floor((diffSeconds % 3600) / 60);
+            const s = diffSeconds % 60;
 
             hoursEl.textContent = h.toString().padStart(2, '0');
             minutesEl.textContent = m.toString().padStart(2, '0');
             secondsEl.textContent = s.toString().padStart(2, '0');
         };
 
-        setInterval(() => {
-            durationSeconds--;
-            
-            if (durationSeconds <= 0) {
-                durationSeconds = (3 * 3600) + (0 * 60) + 0;
-            }
-            
-            localStorage.setItem('promo_timer_duration', durationSeconds.toString());
-            updateTimerDisplay();
-        }, 1000);
-
+        setInterval(updateTimerDisplay, 1000);
         updateTimerDisplay();
     }
 
     /* ==========================================================================
-       5. VACANCIES INDICATOR (Urgência e Escassez)
+       5. VACANCIES INDICATOR (Urgência e Escassez Realista)
        ========================================================================== */
     const vagasCountEl = document.getElementById('vagas-count');
     const vagasBarEl = document.getElementById('vagas-bar');
 
     if (vagasCountEl && vagasBarEl) {
         let seatsRemaining = parseInt(localStorage.getItem('seats_remaining'));
-        if (isNaN(seatsRemaining) || seatsRemaining <= 0) {
+        if (isNaN(seatsRemaining) || seatsRemaining <= 0 || seatsRemaining > 7) {
             seatsRemaining = 7;
         }
 
@@ -152,19 +157,20 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const updateSeatsDisplay = () => {
             vagasCountEl.textContent = seatsRemaining.toString();
-            const filledPercent = ((maxSeats - seatsRemaining) / maxSeats) * 100;
+            const filledPercent = Math.min(100, Math.max(10, ((maxSeats - seatsRemaining) / maxSeats) * 100));
             vagasBarEl.style.width = `${filledPercent}%`;
         };
 
+        // Simula pequena redução com limite mínimo de 3 vagas
         const purchaseInterval = setInterval(() => {
-            if (seatsRemaining > 2) {
+            if (seatsRemaining > 3) {
                 seatsRemaining--;
                 localStorage.setItem('seats_remaining', seatsRemaining.toString());
                 updateSeatsDisplay();
             } else {
                 clearInterval(purchaseInterval);
             }
-        }, 45000);
+        }, 90000); // reduz 1 vaga a cada 1min30s até o mínimo de 3
 
         updateSeatsDisplay();
     }
